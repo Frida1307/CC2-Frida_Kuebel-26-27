@@ -1,0 +1,703 @@
+<!doctype html>
+<html lang="de">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#101226">
+    <title>ESP32 Sound Lab</title>
+    <style>
+        :root {
+            color-scheme: dark;
+            font-family: "Segoe UI", system-ui, sans-serif;
+            background: #101226;
+            color: #f5f4ff;
+            font-synthesis: none;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            min-height: 100vh;
+            margin: 0;
+            padding: 32px 18px;
+            background:
+                radial-gradient(ellipse at 18% 18%, #37316a 0, transparent 38%),
+                radial-gradient(ellipse at 90% 82%, #173d58 0, transparent 34%),
+                #101226;
+        }
+
+        main {
+            width: min(940px, 100%);
+            margin: 0 auto;
+        }
+
+        header {
+            margin-bottom: 24px;
+        }
+
+        .eyebrow {
+            color: #a9a4ff;
+            font-size: 0.76rem;
+            font-weight: 700;
+            letter-spacing: 0.16em;
+            text-transform: uppercase;
+        }
+
+        h1 {
+            margin: 8px 0;
+            font-size: clamp(2.2rem, 8vw, 4.6rem);
+            letter-spacing: -0.07em;
+            line-height: 1;
+        }
+
+        h1 span {
+            color: #9c91ff;
+        }
+
+        header p,
+        .hint {
+            color: #b6b8d1;
+            line-height: 1.6;
+        }
+
+        .panel {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) minmax(270px, 0.8fr);
+            gap: 30px;
+            padding: clamp(20px, 5vw, 40px);
+            border: 1px solid #ffffff20;
+            border-radius: 28px;
+            background: #17192dcc;
+            box-shadow: 0 24px 80px #05061180;
+            backdrop-filter: blur(16px);
+        }
+
+        .control {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .pad-label {
+            align-self: flex-start;
+            margin-bottom: 12px;
+            color: #b6b8d1;
+            font-size: 0.9rem;
+        }
+
+        .pad {
+            position: relative;
+            display: grid;
+            width: min(100%, 340px);
+            aspect-ratio: 1;
+            place-items: center;
+            overflow: hidden;
+            border: 1px solid #aaa1ff35;
+            border-radius: 50%;
+            background:
+                linear-gradient(#ffffff0b 1px, transparent 1px),
+                linear-gradient(90deg, #ffffff0b 1px, transparent 1px),
+                radial-gradient(circle, #282945 0, #191a31 70%);
+            background-size: 25% 25%, 25% 25%, auto;
+            box-shadow: inset 0 0 55px #070813a6, 0 0 45px #756aff12;
+            touch-action: none;
+            user-select: none;
+        }
+
+        .pad::before,
+        .pad::after {
+            position: absolute;
+            z-index: 1;
+            color: #9a9bb9;
+            font-size: 0.7rem;
+            pointer-events: none;
+        }
+
+        .pad::before {
+            top: 10px;
+            content: "↑  FILTER";
+        }
+
+        .pad::after {
+            bottom: 10px;
+            content: "PITCH  →";
+        }
+
+        .crosshair {
+            position: absolute;
+            width: 100%;
+            height: 1px;
+            background: #aaa1ff20;
+            pointer-events: none;
+        }
+
+        .crosshair.vertical {
+            width: 1px;
+            height: 100%;
+        }
+
+        .stick {
+            z-index: 2;
+            width: 27%;
+            aspect-ratio: 1;
+            border: 2px solid #ffffffc7;
+            border-radius: 50%;
+            background: radial-gradient(circle at 35% 30%, #e3dcff, #9585ff 38%, #5b4cd0 78%);
+            box-shadow: 0 0 28px #9688ffb3, inset 0 2px 6px #ffffff80;
+            pointer-events: none;
+            transition: transform 50ms linear;
+        }
+
+        .readout {
+            width: 100%;
+            margin-top: 24px;
+            text-align: center;
+        }
+
+        .note {
+            color: #aaa1ff;
+            font-size: clamp(2.4rem, 8vw, 4rem);
+            font-weight: 750;
+            letter-spacing: -0.06em;
+            line-height: 1.1;
+        }
+
+        .frequency {
+            margin-top: 4px;
+            color: #c9cbe0;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .settings {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            gap: 20px;
+        }
+
+        .visualizer {
+            width: 100%;
+            height: 142px;
+            border: 1px solid #ffffff16;
+            border-radius: 16px;
+            background: #101226a8;
+        }
+
+        .field-label {
+            display: block;
+            margin-bottom: 8px;
+            color: #b6b8d1;
+            font-size: 0.85rem;
+        }
+
+        select,
+        button {
+            width: 100%;
+            min-height: 48px;
+            border: 1px solid #ffffff28;
+            border-radius: 12px;
+            font: inherit;
+        }
+
+        select {
+            padding: 0 14px;
+            background: #22243d;
+            color: #f5f4ff;
+        }
+
+        button {
+            padding: 0 18px;
+            background: linear-gradient(100deg, #8b7bff, #58c8e8);
+            color: #111328;
+            font-weight: 750;
+            cursor: pointer;
+            transition: filter 120ms ease, transform 120ms ease;
+        }
+
+        button:hover {
+            filter: brightness(1.1);
+        }
+
+        button:active {
+            transform: scale(0.98);
+        }
+
+        button.stop {
+            border-color: #ff829755;
+            background: #ff82991b;
+            color: #ffacba;
+        }
+
+        button.secondary {
+            border-color: #a99cff55;
+            background: #a99cff16;
+            color: #d3ceff;
+        }
+
+        .status {
+            min-height: 1.4em;
+            margin: 0;
+            color: #b6b8d1;
+            font-size: 0.88rem;
+            text-align: center;
+        }
+
+        .hint {
+            margin: 20px 4px 0;
+            font-size: 0.9rem;
+            text-align: center;
+        }
+
+        @media (max-width: 700px) {
+            body {
+                padding-top: 24px;
+            }
+
+            .panel {
+                grid-template-columns: 1fr;
+                gap: 28px;
+            }
+
+            .settings {
+                gap: 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <main>
+        <header>
+            <div class="eyebrow">Ein kleines Klang-Experiment</div>
+            <h1>ESP32 <span>Sound Lab</span></h1>
+            <p>Bewege den virtuellen Stick: rechts und links ändern die Tonhöhe, oben und unten die Klangfarbe.</p>
+        </header>
+
+        <section class="panel" aria-label="Klangsteuerung">
+            <div class="control">
+                <div class="pad-label">Virtueller Joystick</div>
+                <div class="pad" id="pad" role="application" aria-label="Joystick für Tonhöhe und Filter">
+                    <div class="crosshair"></div>
+                    <div class="crosshair vertical"></div>
+                    <div class="stick" id="stick"></div>
+                </div>
+                <div class="readout" aria-live="polite">
+                    <div class="note" id="note">A4</div>
+                    <div class="frequency" id="frequency">440 Hz</div>
+                </div>
+            </div>
+
+            <div class="settings">
+                <canvas class="visualizer" id="visualizer" aria-label="Audio-Wellenform"></canvas>
+                <div>
+                    <label class="field-label" for="waveform">Wellenform</label>
+                    <select id="waveform">
+                        <option value="sine">Rund — Sinus</option>
+                        <option value="triangle">Weich — Dreieck</option>
+                        <option value="square">Klar — Rechteck</option>
+                        <option value="sawtooth">Sägezahn</option>
+                        <option value="violin">Violine — Obertöne + Vibrato</option>
+                    </select>
+                </div>
+                <button id="soundButton" type="button">▶ Klang starten</button>
+                <button class="secondary" id="serialButton" type="button">↔ ESP32-Joystick verbinden</button>
+                <p class="status" id="serialStatus">USB-Kabel verbunden? Erst den Serial Monitor trennen, dann hier COM5 auswählen.</p>
+                <p class="status" id="status">Noch stumm — starte den Klang mit einem Klick.</p>
+            </div>
+        </section>
+
+        <p class="hint">Der Klang wird im Browser erzeugt. Verbinde den ESP32 über USB, um den echten Joystick zu verwenden; alternativ kannst du den virtuellen Stick testen.</p>
+    </main>
+
+    <script>
+        const pad = document.getElementById("pad");
+        const stick = document.getElementById("stick");
+        const noteDisplay = document.getElementById("note");
+        const frequencyDisplay = document.getElementById("frequency");
+        const soundButton = document.getElementById("soundButton");
+        const serialButton = document.getElementById("serialButton");
+        const waveformSelect = document.getElementById("waveform");
+        const status = document.getElementById("status");
+        const serialStatus = document.getElementById("serialStatus");
+        const canvas = document.getElementById("visualizer");
+        const canvasContext = canvas.getContext("2d");
+
+        let audioContext;
+        let oscillator;
+        let vibratoOscillator;
+        let vibratoGain;
+        let violinWave;
+        let gain;
+        let filter;
+        let analyser;
+        let animationFrame;
+        let pitchPosition = 0.5;
+        let filterPosition = 0.5;
+        let serialPort;
+        let serialReader;
+        let serialReadTask;
+        let serialBuffer = "";
+        let usingHardwareJoystick = false;
+        let lastHardwareDataTime = 0;
+        let hardwareDataWatchdog;
+
+        function frequencyFromPosition(position) {
+            return 110 * Math.pow(8, position);
+        }
+
+        function noteFromFrequency(frequency) {
+            const names = ["C", "C♯", "D", "D♯", "E", "F", "F♯", "G", "G♯", "A", "A♯", "B"];
+            const midi = Math.round(69 + 12 * Math.log2(frequency / 440));
+            return `${names[(midi % 12 + 12) % 12]}${Math.floor(midi / 12) - 1}`;
+        }
+
+        function updateTone() {
+            const frequency = frequencyFromPosition(pitchPosition);
+            noteDisplay.textContent = noteFromFrequency(frequency);
+            frequencyDisplay.textContent = `${Math.round(frequency)} Hz`;
+
+            if (oscillator && audioContext) {
+                oscillator.frequency.setTargetAtTime(frequency, audioContext.currentTime, 0.025);
+                filter.frequency.setTargetAtTime(
+                    350 + Math.pow(1 - filterPosition, 2) * 9500,
+                    audioContext.currentTime,
+                    0.04
+                );
+            }
+        }
+
+        function setWaveform() {
+            if (!oscillator || !audioContext) {
+                return;
+            }
+
+            if (waveformSelect.value === "violin") {
+                if (!violinWave) {
+                    const real = new Float32Array(17);
+                    const imaginary = new Float32Array(17);
+                    for (let harmonic = 1; harmonic < imaginary.length; harmonic++) {
+                        const formant = 1 + 0.55 * Math.exp(-Math.pow((harmonic - 5) / 2.2, 2));
+                        imaginary[harmonic] = formant / Math.pow(harmonic, 0.82);
+                    }
+                    violinWave = audioContext.createPeriodicWave(real, imaginary);
+                }
+                oscillator.setPeriodicWave(violinWave);
+
+                if (!vibratoOscillator) {
+                    vibratoOscillator = audioContext.createOscillator();
+                    vibratoGain = audioContext.createGain();
+                    vibratoOscillator.frequency.value = 5.2;
+                    vibratoGain.gain.value = 4;
+                    vibratoOscillator.connect(vibratoGain);
+                    vibratoGain.connect(oscillator.frequency);
+                    vibratoOscillator.start();
+                }
+                return;
+            }
+
+            oscillator.type = waveformSelect.value;
+            if (vibratoOscillator) {
+                vibratoOscillator.stop();
+                vibratoOscillator.disconnect();
+                vibratoGain.disconnect();
+                vibratoOscillator = undefined;
+                vibratoGain = undefined;
+            }
+        }
+
+        function moveStick(event) {
+            if (usingHardwareJoystick) {
+                return;
+            }
+
+            const bounds = pad.getBoundingClientRect();
+            const radius = bounds.width * 0.37;
+            const centerX = bounds.left + bounds.width / 2;
+            const centerY = bounds.top + bounds.height / 2;
+            let dx = (event.clientX - centerX) / radius;
+            let dy = (event.clientY - centerY) / radius;
+            const length = Math.hypot(dx, dy);
+
+            if (length > 1) {
+                dx /= length;
+                dy /= length;
+            }
+
+            pitchPosition = (dx + 1) / 2;
+            filterPosition = (dy + 1) / 2;
+            stick.style.transform = `translate(${dx * radius}px, ${dy * radius}px)`;
+            updateTone();
+        }
+
+        function updateFromHardware(x, y) {
+            const dx = (x / 4095) * 2 - 1;
+            const dy = (y / 4095) * 2 - 1;
+            const bounds = pad.getBoundingClientRect();
+            const radius = bounds.width * 0.37;
+
+            pitchPosition = x / 4095;
+            filterPosition = y / 4095;
+            stick.style.transform = `translate(${dx * radius}px, ${dy * radius}px)`;
+            updateTone();
+        }
+
+        function handleSerialLine(line) {
+            const match = line.match(/X:\s*(\d+)\s+Y:\s*(\d+)/);
+            if (!match) {
+                return;
+            }
+
+            const x = Number(match[1]);
+            const y = Number(match[2]);
+            if (x > 4095 || y > 4095) {
+                return;
+            }
+
+            updateFromHardware(x, y);
+            lastHardwareDataTime = Date.now();
+            serialStatus.textContent = `Joystick-Daten empfangen — X: ${x}, Y: ${y}`;
+        }
+
+        async function readSerial(port) {
+            const decoder = new TextDecoder();
+            try {
+                while (port.readable && serialPort === port) {
+                    serialReader = port.readable.getReader();
+                    try {
+                        while (true) {
+                            const { value, done } = await serialReader.read();
+                            if (done) {
+                                break;
+                            }
+                            serialBuffer += decoder.decode(value, { stream: true });
+                            const lines = serialBuffer.split(/\r?\n/);
+                            serialBuffer = lines.pop() ?? "";
+                            for (const line of lines) {
+                                handleSerialLine(line);
+                            }
+                        }
+                    } finally {
+                        serialReader.releaseLock();
+                        serialReader = undefined;
+                    }
+                }
+            } catch (error) {
+                if (serialPort === port) {
+                    serialStatus.textContent = `USB-Verbindung unterbrochen: ${error.message}`;
+                }
+            }
+        }
+
+        async function disconnectSerial() {
+            const port = serialPort;
+            if (!port) {
+                return;
+            }
+
+            serialPort = undefined;
+            usingHardwareJoystick = false;
+            serialBuffer = "";
+            window.clearInterval(hardwareDataWatchdog);
+            try {
+                if (serialReader) {
+                    await serialReader.cancel();
+                }
+                if (serialReadTask) {
+                    await serialReadTask;
+                }
+                await port.close();
+                serialStatus.textContent = "ESP32 getrennt.";
+            } catch (error) {
+                serialStatus.textContent = `Trennen fehlgeschlagen: ${error.message}`;
+            } finally {
+                serialReader = undefined;
+                serialReadTask = undefined;
+                serialButton.textContent = "↔ ESP32-Joystick verbinden";
+            }
+        }
+
+        async function connectSerial() {
+            if (!("serial" in navigator)) {
+                serialStatus.textContent = "Web Serial wird hier nicht unterstützt. Bitte Chrome oder Edge verwenden.";
+                return;
+            }
+
+            try {
+                serialPort = await navigator.serial.requestPort();
+                await serialPort.open({ baudRate: 115200 });
+                usingHardwareJoystick = true;
+                serialButton.textContent = "USB-Verbindung trennen";
+                const info = serialPort.getInfo();
+                const deviceName = info.usbVendorId === 0x1a86 && info.usbProductId === 0x7523
+                    ? "CH340 (USB-Serielladapter)"
+                    : "Seriellgerät";
+                lastHardwareDataTime = 0;
+                serialStatus.textContent = `${deviceName} geöffnet — warte auf ESP32-Daten …`;
+                serialReadTask = readSerial(serialPort);
+                hardwareDataWatchdog = window.setInterval(() => {
+                    if (serialPort && Date.now() - lastHardwareDataTime > 2000) {
+                        serialStatus.textContent =
+                            "Port offen, aber keine X/Y-Daten. Wähle den USB-CH340-Port (nicht COM6/COM7) und trenne Serial Monitor/ESP-Decoder.";
+                    }
+                }, 1000);
+            } catch (error) {
+                serialPort = undefined;
+                usingHardwareJoystick = false;
+                window.clearInterval(hardwareDataWatchdog);
+                serialStatus.textContent = `Verbindung fehlgeschlagen: ${error.message}`;
+            }
+        }
+
+        pad.addEventListener("pointerdown", (event) => {
+            pad.setPointerCapture(event.pointerId);
+            moveStick(event);
+        });
+        pad.addEventListener("pointermove", (event) => {
+            if (pad.hasPointerCapture(event.pointerId)) {
+                moveStick(event);
+            }
+        });
+
+        function drawWaveform() {
+            const bounds = canvas.getBoundingClientRect();
+            const pixelRatio = window.devicePixelRatio || 1;
+            const width = Math.max(1, Math.floor(bounds.width * pixelRatio));
+            const height = Math.max(1, Math.floor(bounds.height * pixelRatio));
+            if (canvas.width !== width || canvas.height !== height) {
+                canvas.width = width;
+                canvas.height = height;
+            }
+
+            canvasContext.clearRect(0, 0, width, height);
+            canvasContext.lineWidth = 2 * pixelRatio;
+            canvasContext.strokeStyle = "#a99cff";
+            canvasContext.shadowColor = "#8b7bff";
+            canvasContext.shadowBlur = 12 * pixelRatio;
+            canvasContext.beginPath();
+
+            if (analyser && oscillator) {
+                const samples = new Uint8Array(analyser.fftSize);
+                analyser.getByteTimeDomainData(samples);
+                for (let i = 0; i < samples.length; i++) {
+                    const x = (i / (samples.length - 1)) * width;
+                    const y = (samples[i] / 255) * height;
+                    if (i === 0) {
+                        canvasContext.moveTo(x, y);
+                    } else {
+                        canvasContext.lineTo(x, y);
+                    }
+                }
+            } else {
+                const middle = height / 2;
+                canvasContext.moveTo(0, middle);
+                canvasContext.lineTo(width, middle);
+            }
+
+            canvasContext.stroke();
+            canvasContext.shadowBlur = 0;
+            animationFrame = requestAnimationFrame(drawWaveform);
+        }
+
+        async function startSound() {
+            try {
+                audioContext = new AudioContext();
+                await audioContext.resume();
+
+                oscillator = audioContext.createOscillator();
+                gain = audioContext.createGain();
+                filter = audioContext.createBiquadFilter();
+                analyser = audioContext.createAnalyser();
+                analyser.fftSize = 1024;
+                oscillator.frequency.value = frequencyFromPosition(pitchPosition);
+                filter.type = "lowpass";
+                filter.frequency.value = 350 + Math.pow(1 - filterPosition, 2) * 9500;
+                gain.gain.setValueAtTime(0, audioContext.currentTime);
+                gain.gain.setTargetAtTime(0.14, audioContext.currentTime, 0.06);
+
+                oscillator.connect(filter);
+                filter.connect(gain);
+                gain.connect(analyser);
+                analyser.connect(audioContext.destination);
+                oscillator.start();
+                setWaveform();
+
+                soundButton.textContent = "■ Klang stoppen";
+                soundButton.classList.add("stop");
+                status.textContent = "Klang läuft — bewege den virtuellen Joystick.";
+                updateTone();
+                drawWaveform();
+            } catch (error) {
+                status.textContent = `Audio konnte nicht gestartet werden: ${error.message}`;
+            }
+        }
+
+        async function stopSound() {
+            if (!oscillator || !audioContext) {
+                return;
+            }
+
+            cancelAnimationFrame(animationFrame);
+            const currentOscillator = oscillator;
+            const currentVibratoOscillator = vibratoOscillator;
+            const currentContext = audioContext;
+            gain.gain.setTargetAtTime(0, currentContext.currentTime, 0.015);
+            currentOscillator.stop(currentContext.currentTime + 0.08);
+            if (currentVibratoOscillator) {
+                currentVibratoOscillator.stop(currentContext.currentTime + 0.08);
+                currentVibratoOscillator.disconnect();
+                vibratoGain.disconnect();
+            }
+            oscillator = undefined;
+            vibratoOscillator = undefined;
+            vibratoGain = undefined;
+            violinWave = undefined;
+            audioContext = undefined;
+            soundButton.textContent = "▶ Klang starten";
+            soundButton.classList.remove("stop");
+            status.textContent = "Klang gestoppt.";
+            window.setTimeout(() => currentContext.close(), 150);
+            drawWaveform();
+        }
+
+        soundButton.addEventListener("click", () => {
+            if (oscillator) {
+                stopSound();
+            } else {
+                startSound();
+            }
+        });
+
+        waveformSelect.addEventListener("change", () => {
+            if (oscillator) {
+                setWaveform();
+            }
+        });
+
+        serialButton.addEventListener("click", () => {
+            if (serialPort) {
+                disconnectSerial();
+            } else {
+                connectSerial();
+            }
+        });
+
+        if ("serial" in navigator) {
+            navigator.serial.addEventListener("disconnect", (event) => {
+                if (event.target === serialPort) {
+                    disconnectSerial();
+                }
+            });
+        }
+
+        window.addEventListener("resize", () => {
+            if (!oscillator) {
+                drawWaveform();
+            }
+        });
+
+        updateTone();
+        drawWaveform();
+    </script>
+</body>
+</html>
